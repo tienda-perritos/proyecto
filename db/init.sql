@@ -15,3 +15,11 @@ INSERT INTO productos (nombre, descripcion, precio, stock) VALUES
 ('Snacks Dentales', 'Ayuda a la limpieza dental', 5990, 30),
 ('Alimento Adulto Pedigree', 'Sabor carne', 15990, 40),
 ('Bravery pollo Adulto raza pequena', 'Sabor a pollo', 25990, 20);
+
+-- Crear usuario para la app
+CREATE USER IF NOT EXISTS 'alumno'@'%' IDENTIFIED BY 'alumno123';
+
+-- Dar permisos SOLO a esta base
+GRANT ALL PRIVILEGES ON tienda_perritos.* TO 'alumno'@'%';
+
+FLUSH PRIVILEGES;
