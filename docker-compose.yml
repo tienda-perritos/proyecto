@@ -1,0 +1,53 @@
+
+services:
+
+  db:
+    build: ./db
+    container_name: tienda-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+      MYSQL_DATABASE: tienda_perritos
+      MYSQL_USER: alumno
+      MYSQL_PASSWORD: alumno123
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - tienda-network
+
+  backend:
+    build: ./backend
+    container_name: tienda-backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+       DB_HOST: ${DB_HOST}
+       DB_USER: ${DB_USER}
+       DB_PASSWORD: ${DB_PASSWORD}
+       DB_NAME: ${DB_NAME}
+       DB_PORT: ${DB_PORT}
+    ports:
+      - "3001:3001"
+    networks:
+      - tienda-network
+
+  frontend:
+    build: ./frontend
+    container_name: tienda-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - tienda-network
+
+volumes:
+  mysql_data:
+
+networks:
+  tienda-network:
+    driver: bridge
+
