@@ -1,0 +1,78 @@
+name: ci_cd_frontend_eks
+
+# Se dispara con cada push a la rama "deploy"
+on:
+  push:
+    branches: ["deploy"]
+  workflow_dispatch:   # permite ejecutarlo manualmente desde la pestaña Actions
+
+jobs:
+  build_push_deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      EKS_NAMESPACE: tienda
+      EKS_CLUSTER_NAME: devopseks
+      IMAGE_REPO: tienda-frontend
+      DEPLOYMENT: tienda-frontend
+      CONTAINER: frontend
+
+    steps:
+      - name: Checkout del codigo
+        uses: actions/checkout@v4
+
+      # Learner Lab usa credenciales temporales (STS) -> requiere session token
+      - name: Configurar credenciales AWS (Learner Lab)
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [default]
+          aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+          EOF
+          cat > ~/.aws/config << EOF
+          [default]
+          region=${AWS_REGION}
+          output=json
+          EOF
+
+      - name: Verificar identidad AWS
+        run: aws sts get-caller-identity
+
+      - name: Login a Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${AWS_REGION} \
+            | docker login --username AWS --password-stdin \
+              ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+      - name: Build + Push de la imagen (tag versionado)
+        run: |
+          TAG="eks-${GITHUB_RUN_NUMBER}"
+          IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_REPO}:${TAG}"
+          docker build -t ${IMAGE} .
+          docker push ${IMAGE}
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+
+      - name: Instalar kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Conectar kubectl al cluster EKS
+        run: |
+          aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}
+          kubectl get nodes
+
+      - name: Deploy (rolling update del deployment)
+        run: |
+          kubectl -n ${EKS_NAMESPACE} set image deployment/${DEPLOYMENT} ${CONTAINER}=${IMAGE}
+          kubectl -n ${EKS_NAMESPACE} rollout status deployment/${DEPLOYMENT} --timeout=300s
+
+      - name: Evidencia post-deploy (URL publica del Frontend)
+        run: |
+          kubectl get pods -n ${EKS_NAMESPACE}
+          kubectl get svc tienda-frontend -n ${EKS_NAMESPACE}
