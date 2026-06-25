@@ -4,6 +4,9 @@ name: ci_cd_backend_eks
 on:
   push:
     branches: ["deploy"]
+    paths:               # monorepo: solo dispara si cambia el backend o este workflow
+      - "backend/**"
+      - ".github/workflows/ci_cd_backend.yml"
   workflow_dispatch:   # permite ejecutarlo manualmente desde la pestaña Actions
 
 jobs:
@@ -51,7 +54,7 @@ jobs:
         run: |
           TAG="eks-${GITHUB_RUN_NUMBER}"
           IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_REPO}:${TAG}"
-          docker build -t ${IMAGE} .
+          docker build -t ${IMAGE} ./backend
           docker push ${IMAGE}
           echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
 
