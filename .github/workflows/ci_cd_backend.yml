@@ -1,13 +1,12 @@
 name: ci_cd_backend_eks
 
-# Se dispara con cada push a la rama "deploy"
 on:
   push:
     branches: ["deploy"]
-    paths:               # monorepo: solo dispara si cambia el backend o este workflow
+    paths:
       - "backend/**"
       - ".github/workflows/ci_cd_backend.yml"
-  workflow_dispatch:   # permite ejecutarlo manualmente desde la pestaña Actions
+  workflow_dispatch:
 
 jobs:
   build_push_deploy:
@@ -25,7 +24,6 @@ jobs:
       - name: Checkout del codigo
         uses: actions/checkout@v4
 
-      # Learner Lab usa credenciales temporales (STS) -> requiere session token
       - name: Configurar credenciales AWS (Learner Lab)
         run: |
           mkdir -p ~/.aws
